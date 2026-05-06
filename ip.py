@@ -76,15 +76,22 @@ class IP:
         return IP(tuple(Octet(self.octets[i].value & self.mask.octets[i].value) for i in range(4)))
 
     def get_host(self, host_id: int) -> 'IP':
+        # ! Host ID starts from 1, not 0, because 0 is reserved for the network ID and the last IP is reserved for the broadcast address
         if host_id < 1 or host_id > self.no_of_hosts:
             raise ValueError(f"Host ID must be between 1 and the number of hosts '{self.no_of_hosts}' in the network")
         
+        # * To get the host IP, we need to combine the network ID with the host ID. The host ID is represented in the last octets of the IP address, and we can use bitwise operations to calculate the host IP.
         network_id_octets = self.network_id.octets
+        # * The mask octets are used to determine how many bits are used for the network ID and how many bits are used for the host ID. We can use the mask octets to calculate the host IP by performing a bitwise OR operation between the network ID octets and the host ID, while also ensuring that we only consider the bits that are relevant for the host ID (i.e., the bits that are not part of the network ID).
         mask_octets = self.mask.octets
 
+        # ? We need to shift the host ID to the right by the number of bits used for the network ID in each octet, which is determined by the mask octets. This is done to ensure that we are only considering the bits that are relevant for the host ID when performing the bitwise OR operation.
         host_ip_octets = []
         for i in range(4):
+            # * The bitwise OR operation combines the network ID octet with the host ID, while also ensuring that we only consider the bits that are relevant for the host ID by using the mask octets. The host ID is shifted to the right by the number of bits used for the network ID in each octet to ensure that we are only considering the bits that are relevant for the host ID.
             host_ip_octets.append(Octet(network_id_octets[i].value | (host_id & ~mask_octets[i].value)))
+            
+            # * After calculating the host IP octet, we need to shift the host ID to the right by the number of bits used for the network ID in each octet to prepare for the next iteration of the loop, where we will calculate the next host IP octet. This is done to ensure that we are correctly calculating the host IP for each octet based on the remaining bits of the host ID.
             host_id >>= (8 - mask_octets[i].value.bit_length())
         
         return IP(tuple(host_ip_octets))
